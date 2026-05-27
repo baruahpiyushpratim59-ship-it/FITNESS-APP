@@ -6,13 +6,17 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -41,6 +45,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Egg
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.LocalDrink
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WbSunny
@@ -78,6 +83,7 @@ import com.example.ui.components.GlassCard
 import com.example.ui.components.QuoteSection
 import com.example.ui.components.RoutineCategoryCard
 import com.example.ui.components.WaterIntakeCard
+import com.example.ui.components.WaterIntakeScreen
 import com.example.ui.components.SquareCategoryButton
 import com.example.ui.components.CategoryTasksDialog
 import com.example.ui.components.ClockScreen
@@ -120,10 +126,8 @@ fun RoutineDashboardScreen(
     var activeCategoryDialog by remember { mutableStateOf<String?>(null) }
     var activeScreen by remember { mutableStateOf("dashboard") }
 
-    if (activeScreen != "dashboard") {
-        BackHandler {
-            activeScreen = "dashboard"
-        }
+    BackHandler(enabled = activeScreen != "dashboard") {
+        activeScreen = "dashboard"
     }
 
     // Format display date
@@ -191,8 +195,21 @@ fun RoutineDashboardScreen(
                 .background(Brush.radialGradient(listOf(blobCyan, Color.Transparent)))
         )
 
-        when (activeScreen) {
-            "wakeup" -> {
+        AnimatedContent(
+            targetState = activeScreen,
+            transitionSpec = {
+                if (targetState != "dashboard") {
+                    (slideInHorizontally(animationSpec = tween(350)) { width -> width } + fadeIn(animationSpec = tween(350)))
+                        .togetherWith(slideOutHorizontally(animationSpec = tween(350)) { width -> -width } + fadeOut(animationSpec = tween(350)))
+                } else {
+                    (slideInHorizontally(animationSpec = tween(350)) { width -> -width } + fadeIn(animationSpec = tween(350)))
+                        .togetherWith(slideOutHorizontally(animationSpec = tween(350)) { width -> width } + fadeOut(animationSpec = tween(350)))
+                }
+            },
+            label = "screen_transition"
+        ) { targetScreen ->
+            when (targetScreen) {
+                "wakeup" -> {
                 ClockScreen(
                     onBack = { activeScreen = "dashboard" }
                 )
@@ -228,6 +245,16 @@ fun RoutineDashboardScreen(
                     onAddTask = {
                         showAddTaskDialog = true
                     },
+                    onBack = { activeScreen = "dashboard" }
+                )
+            }
+            "water" -> {
+                val waterItem = routines.find { it.category == "water" }
+                WaterIntakeScreen(
+                    waterItem = waterItem,
+                    onIncrement = { waterItem?.let { viewModel.incrementWater(it) } },
+                    onDecrement = { waterItem?.let { viewModel.decrementWater(it) } },
+                    onUpdateTarget = { newTarget -> waterItem?.let { viewModel.updateWaterTarget(it, newTarget) } },
                     onBack = { activeScreen = "dashboard" }
                 )
             }
@@ -381,47 +408,63 @@ fun RoutineDashboardScreen(
                             letterSpacing = 1.5.sp
                         )
                         Spacer(modifier = Modifier.height(10.dp))
+                        
+                        // Row 1: Snooze & Morning Routine
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            val squareButtons = listOf(
-                                Triple("wakeup", "Snooze", Icons.Default.Alarm),
-                                Triple("morning", "Morning Routine", Icons.Default.WbSunny),
-                                Triple("exercise", "Exercise", Icons.Default.FitnessCenter)
+                            val snoozeTasks = routines.filter { it.category == "wakeup" }
+                            SquareCategoryButton(
+                                title = "Snooze",
+                                icon = Icons.Default.Alarm,
+                                accentColor = Color(0xFF38BDF8),
+                                completedCount = snoozeTasks.count { it.isCompleted },
+                                totalCount = snoozeTasks.size,
+                                onClick = { activeScreen = "wakeup" },
+                                modifier = Modifier.weight(1f)
                             )
-                            squareButtons.forEach { (key, title, icon) ->
-                                val accentColor = when (key) {
-                                    "wakeup" -> Color(0xFF38BDF8)   // Sky
-                                    "morning" -> Color(0xFFFDE047)  // Yellow
-                                    else -> Color(0xFFF87171)       // Coral (Exercise)
-                                }
-                                val catTasks = routines.filter { it.category == key }
-                                SquareCategoryButton(
-                                    title = title,
-                                    icon = icon,
-                                    accentColor = accentColor,
-                                    completedCount = catTasks.count { it.isCompleted },
-                                    totalCount = catTasks.size,
-                                    onClick = {
-                                        activeScreen = key
-                                    },
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
+                            val morningTasks = routines.filter { it.category == "morning" }
+                            SquareCategoryButton(
+                                title = "Morning Routine",
+                                icon = Icons.Default.WbSunny,
+                                accentColor = Color(0xFFFDE047),
+                                completedCount = morningTasks.count { it.isCompleted },
+                                totalCount = morningTasks.size,
+                                onClick = { activeScreen = "morning" },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(10.dp))
+                        
+                        // Row 2: Exercise & Hydration Engine (Water Intake)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            val exerciseTasks = routines.filter { it.category == "exercise" }
+                            SquareCategoryButton(
+                                title = "Exercise",
+                                icon = Icons.Default.FitnessCenter,
+                                accentColor = Color(0xFFF87171),
+                                completedCount = exerciseTasks.count { it.isCompleted },
+                                totalCount = exerciseTasks.size,
+                                onClick = { activeScreen = "exercise" },
+                                modifier = Modifier.weight(1f)
+                            )
+                            val waterItem = routines.find { it.category == "water" }
+                            SquareCategoryButton(
+                                title = "Water Intake",
+                                icon = Icons.Default.LocalDrink,
+                                accentColor = Color(0xFF0EA5E9),
+                                completedCount = waterItem?.completedCount ?: 0,
+                                totalCount = waterItem?.targetCount ?: 8,
+                                onClick = { activeScreen = "water" },
+                                modifier = Modifier.weight(1f)
+                            )
                         }
                     }
-                }
-
-                // Hydration Panel
-                item {
-                    val waterItem = routines.find { it.category == "water" }
-                    WaterIntakeCard(
-                        waterItem = waterItem,
-                        onIncrement = { waterItem?.let { viewModel.incrementWater(it) } },
-                        onDecrement = { waterItem?.let { viewModel.decrementWater(it) } },
-                        onUpdateTarget = { newTarget -> waterItem?.let { viewModel.updateWaterTarget(it, newTarget) } }
-                    )
                 }
 
                 // Routine Category Panels
@@ -476,6 +519,7 @@ fun RoutineDashboardScreen(
         }
     }
 }
+        }
 
         // Add Custom Block Dialog Overlay
         if (showAddTaskDialog) {

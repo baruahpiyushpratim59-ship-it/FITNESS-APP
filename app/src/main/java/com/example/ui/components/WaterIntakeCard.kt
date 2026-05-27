@@ -29,11 +29,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -49,8 +52,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.statusBarsPadding
 import com.example.model.RoutineItem
 import java.util.Locale
 
@@ -409,3 +414,239 @@ fun WaterIntakeCard(
         }
     }
 }
+
+@Composable
+fun WaterIntakeScreen(
+    waterItem: RoutineItem?,
+    onIncrement: () -> Unit,
+    onDecrement: () -> Unit,
+    onUpdateTarget: (Int) -> Unit,
+    onBack: () -> Unit
+) {
+    val completed = waterItem?.completedCount ?: 0
+    val target = waterItem?.targetCount ?: 8
+
+    val completedLiters = completed * 0.25f
+    val targetLiters = target * 0.25f
+
+    val targetsList = listOf(
+        Pair("1.5 L", 6),
+        Pair("2.0 L", 8),
+        Pair("2.5 L", 10),
+        Pair("3.0 L", 12),
+        Pair("3.5 L", 14),
+        Pair("4.0 L", 16)
+    )
+
+    Scaffold(
+        containerColor = Color.Transparent,
+        topBar = {
+            Row(
+                modifier = Modifier
+                    .statusBarsPadding()
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                        .testTag("water_back_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back to dashboard",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text(
+                        text = "HYDRATION GOAL",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF38BDF8),
+                        letterSpacing = 2.sp
+                    )
+                    Text(
+                        text = "Water Intake Tracker",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Main Glass Canvas Card
+            GlassCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Larger water glass with realistic wave ripple animation
+                    WaterGlassAnimation(
+                        completedCount = completed,
+                        targetCount = target,
+                        modifier = Modifier
+                            .size(170.dp, 230.dp)
+                            .padding(vertical = 12.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Liters Display with elegant neon styling
+                    Text(
+                        text = String.format(Locale.US, "%.2f L / %.2f L", completedLiters, targetLiters),
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color(0xFF38BDF8),
+                        textAlign = TextAlign.Center
+                    )
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "$completed of $target glasses completed (250ml each)",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Large, modern touch buttons to adjust amount
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // MINUS
+                        IconButton(
+                            onClick = onDecrement,
+                            enabled = completed > 0,
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (completed > 0) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.03f)
+                                )
+                                .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f), CircleShape)
+                                .testTag("water_screen_decrement")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Remove,
+                                contentDescription = "Decrease water intake count",
+                                tint = if (completed > 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(32.dp))
+
+                        // PLUS
+                        IconButton(
+                            onClick = onIncrement,
+                            enabled = completed < target,
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF0284C7))
+                                .border(1.dp, Color(0xFF38BDF8).copy(alpha = 0.3f), CircleShape)
+                                .testTag("water_screen_increment")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Increase water intake count",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Target Adjustment Section
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = "Customize Daily Target Plan:",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(targetsList) { pair ->
+                            val (label, targetCountValue) = pair
+                            val isSelected = target == targetCountValue
+                            WaterTargetChip(
+                                label = label,
+                                isSelected = isSelected,
+                                onClick = {
+                                    if (!isSelected) {
+                                        onUpdateTarget(targetCountValue)
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Informative/Inspirational box
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.WaterDrop,
+                        contentDescription = "Infotip logo",
+                        tint = Color(0xFF0EA5E9),
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Text(
+                        text = "Did you know? Regular water intake improves energy levels, enhances brain function, and helps maintain peak performance.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        lineHeight = 16.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
