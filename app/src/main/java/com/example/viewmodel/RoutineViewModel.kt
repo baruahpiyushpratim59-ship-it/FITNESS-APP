@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -17,9 +18,17 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class RoutineViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: RoutineRepository
+
+    private val _isDarkTheme = MutableStateFlow(true)
+    val isDarkTheme: StateFlow<Boolean> = _isDarkTheme.asStateFlow()
+
+    fun toggleTheme() {
+        _isDarkTheme.value = !_isDarkTheme.value
+    }
 
     private val _currentDate = MutableStateFlow("")
     val currentDate: StateFlow<String> = _currentDate.asStateFlow()
@@ -89,6 +98,17 @@ class RoutineViewModel(application: Application) : AndroidViewModel(application)
                     isCompleted = (item.completedCount - 1 >= item.targetCount)
                 ))
             }
+        }
+    }
+
+    fun updateWaterTarget(item: RoutineItem, targetCount: Int) {
+        viewModelScope.launch {
+            val adjustedCompleted = if (item.completedCount > targetCount) targetCount else item.completedCount
+            repository.update(item.copy(
+                targetCount = targetCount,
+                completedCount = adjustedCompleted,
+                isCompleted = (adjustedCompleted >= targetCount)
+            ))
         }
     }
 

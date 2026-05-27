@@ -20,6 +20,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -62,10 +63,10 @@ fun AddCustomTaskDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF151226)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(24.dp))
+                .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
         ) {
             Column(
                 modifier = Modifier
@@ -76,7 +77,7 @@ fun AddCustomTaskDialog(
                     text = "Add Daily Routine Block",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -87,12 +88,12 @@ fun AddCustomTaskDialog(
                     onValueChange = { title = it },
                     label = { Text("Task Title e.g., Read 10 pages") },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF8B5CF6),
-                        unfocusedBorderColor = Color(0x33FFFFFF),
-                        focusedLabelColor = Color(0xFF8B5CF6),
-                        unfocusedLabelColor = Color(0x99FFFFFF),
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -108,12 +109,12 @@ fun AddCustomTaskDialog(
                     onValueChange = { scheduledTime = it },
                     label = { Text("Scheduled Time e.g., 08:30 PM") },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF8B5CF6),
-                        unfocusedBorderColor = Color(0x33FFFFFF),
-                        focusedLabelColor = Color(0xFF8B5CF6),
-                        unfocusedLabelColor = Color(0x99FFFFFF),
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -129,12 +130,12 @@ fun AddCustomTaskDialog(
                     onValueChange = { notes = it },
                     label = { Text("Description/Goal (Optional)") },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF8B5CF6),
-                        unfocusedBorderColor = Color(0x33FFFFFF),
-                        focusedLabelColor = Color(0xFF8B5CF6),
-                        unfocusedLabelColor = Color(0x99FFFFFF),
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -148,7 +149,7 @@ fun AddCustomTaskDialog(
                     text = "CATEGORY",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFA78BFA),
+                    color = MaterialTheme.colorScheme.primary,
                     letterSpacing = 1.sp
                 )
 
@@ -165,7 +166,7 @@ fun AddCustomTaskDialog(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(10.dp))
                                 .background(
-                                    if (isSelected) Color(0xFF8B5CF6) else Color(0x0FFFFFFF)
+                                    if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
                                 )
                                 .clickable { selectedCategory = key }
                                 .padding(horizontal = 14.dp, vertical = 8.dp)
@@ -176,7 +177,7 @@ fun AddCustomTaskDialog(
                                 text = name,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isSelected) Color.White else Color(0xB3FFFFFF)
+                                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                             )
                         }
                     }
@@ -205,7 +206,7 @@ fun AddCustomTaskDialog(
                                 onDismiss()
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8B5CF6)),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.testTag("dialog_save_button")
                     ) {

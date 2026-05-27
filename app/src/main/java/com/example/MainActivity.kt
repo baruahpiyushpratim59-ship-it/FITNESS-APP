@@ -2,10 +2,13 @@ package com.example
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -47,7 +50,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -73,6 +78,11 @@ import com.example.ui.components.GlassCard
 import com.example.ui.components.QuoteSection
 import com.example.ui.components.RoutineCategoryCard
 import com.example.ui.components.WaterIntakeCard
+import com.example.ui.components.SquareCategoryButton
+import com.example.ui.components.CategoryTasksDialog
+import com.example.ui.components.ClockScreen
+import com.example.ui.components.MorningRoutineScreen
+import com.example.ui.components.ExerciseScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.viewmodel.RoutineViewModel
 import java.text.SimpleDateFormat
@@ -86,7 +96,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MyApplicationTheme {
+            val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
+            MyApplicationTheme(darkTheme = isDarkTheme) {
                 RoutineDashboardScreen(viewModel = viewModel)
             }
         }
@@ -102,9 +113,18 @@ fun RoutineDashboardScreen(
     val quote by viewModel.motivationalQuote.collectAsStateWithLifecycle()
     val isAILoading by viewModel.isAILoading.collectAsStateWithLifecycle()
     val aiSuggestion by viewModel.aiSuggestion.collectAsStateWithLifecycle()
+    val isDark by viewModel.isDarkTheme.collectAsStateWithLifecycle()
 
     var showAddTaskDialog by remember { mutableStateOf(false) }
     var selectedCategoryForAI by remember { mutableStateOf<String?>(null) }
+    var activeCategoryDialog by remember { mutableStateOf<String?>(null) }
+    var activeScreen by remember { mutableStateOf("dashboard") }
+
+    if (activeScreen != "dashboard") {
+        BackHandler {
+            activeScreen = "dashboard"
+        }
+    }
 
     // Format display date
     val displayDate = SimpleDateFormat("EEEE, d MMMM YYYY", Locale.getDefault()).format(Date())
@@ -115,16 +135,40 @@ fun RoutineDashboardScreen(
     val totalCount = taskRoutines.size
     val progressFraction = if (totalCount == 0) 1f else completedCount.toFloat() / totalCount
 
+    // Animated background gradient colors for incredibly smooth theme transition
+    val gradStart by animateColorAsState(
+        targetValue = if (isDark) Color(0xFF040209) else Color(0xFFF3F4F6),
+        animationSpec = tween(durationMillis = 600),
+        label = "gradStart"
+    )
+    val gradMid by animateColorAsState(
+        targetValue = if (isDark) Color(0xFF0D0922) else Color(0xFFE5E7EB),
+        animationSpec = tween(durationMillis = 600),
+        label = "gradMid"
+    )
+    val gradEnd by animateColorAsState(
+        targetValue = if (isDark) Color(0xFF111438) else Color(0xFFF3F4F6),
+        animationSpec = tween(durationMillis = 600),
+        label = "gradEnd"
+    )
+
+    val blobPurple by animateColorAsState(
+        targetValue = if (isDark) Color(0x188B5CF6) else Color(0x0C8B5CF6),
+        animationSpec = tween(durationMillis = 600),
+        label = "blobPurple"
+    )
+    val blobCyan by animateColorAsState(
+        targetValue = if (isDark) Color(0x1100E5FF) else Color(0x0800E5FF),
+        animationSpec = tween(durationMillis = 600),
+        label = "blobCyan"
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF040209),
-                        Color(0xFF0D0922),
-                        Color(0xFF111438)
-                    )
+                    colors = listOf(gradStart, gradMid, gradEnd)
                 )
             )
             .testTag("dashboard_root")
@@ -135,7 +179,7 @@ fun RoutineDashboardScreen(
                 .offset(x = (-90).dp, y = (-100).dp)
                 .size(350.dp)
                 .clip(CircleShape)
-                .background(Brush.radialGradient(listOf(Color(0x188B5CF6), Color.Transparent)))
+                .background(Brush.radialGradient(listOf(blobPurple, Color.Transparent)))
         )
 
         Box(
@@ -144,11 +188,52 @@ fun RoutineDashboardScreen(
                 .offset(x = 120.dp, y = 140.dp)
                 .size(420.dp)
                 .clip(CircleShape)
-                .background(Brush.radialGradient(listOf(Color(0x1100E5FF), Color.Transparent)))
+                .background(Brush.radialGradient(listOf(blobCyan, Color.Transparent)))
         )
 
-        Scaffold(
-            containerColor = Color.Transparent,
+        when (activeScreen) {
+            "wakeup" -> {
+                ClockScreen(
+                    onBack = { activeScreen = "dashboard" }
+                )
+            }
+            "morning" -> {
+                val morningTasks = routines.filter { it.category == "morning" }
+                MorningRoutineScreen(
+                    tasks = morningTasks,
+                    isAILoading = isAILoading && selectedCategoryForAI == "morning",
+                    onToggleComplete = { viewModel.toggleComplete(it) },
+                    onDelete = { viewModel.deleteRoutine(it) },
+                    onAskAI = {
+                        selectedCategoryForAI = "morning"
+                        viewModel.fetchAISuggestion("morning")
+                    },
+                    onAddTask = {
+                        showAddTaskDialog = true
+                    },
+                    onBack = { activeScreen = "dashboard" }
+                )
+            }
+            "exercise" -> {
+                val exerciseTasks = routines.filter { it.category == "exercise" }
+                ExerciseScreen(
+                    tasks = exerciseTasks,
+                    isAILoading = isAILoading && selectedCategoryForAI == "exercise",
+                    onToggleComplete = { viewModel.toggleComplete(it) },
+                    onDelete = { viewModel.deleteRoutine(it) },
+                    onAskAI = {
+                        selectedCategoryForAI = "exercise"
+                        viewModel.fetchAISuggestion("exercise")
+                    },
+                    onAddTask = {
+                        showAddTaskDialog = true
+                    },
+                    onBack = { activeScreen = "dashboard" }
+                )
+            }
+            else -> {
+                Scaffold(
+                    containerColor = Color.Transparent,
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = { showAddTaskDialog = true },
@@ -177,26 +262,53 @@ fun RoutineDashboardScreen(
                 // Main Header Block
                 item {
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = "AURA ROUTINE AI",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF00E5FF),
-                        letterSpacing = 2.sp,
-                        modifier = Modifier.statusBarsPadding()
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Your Day at Glance",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White
-                    )
-                    Text(
-                        text = displayDate,
-                        fontSize = 14.sp,
-                        color = Color(0x99FFFFFF)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "AURA ROUTINE AI",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                letterSpacing = 2.sp
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Your Day at Glance",
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = displayDate,
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+
+                        // Top-Right Corner Theme Toggle
+                        IconButton(
+                            onClick = { viewModel.toggleTheme() },
+                            modifier = Modifier
+                                .padding(top = 4.dp)
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                                .testTag("theme_toggle_button")
+                        ) {
+                            Icon(
+                                imageVector = if (isDark) Icons.Default.WbSunny else Icons.Default.Bedtime,
+                                contentDescription = "Toggle Theme Mode",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
                 }
 
                 // Completion Progress Card
@@ -221,14 +333,14 @@ fun RoutineDashboardScreen(
                                         text = if (totalCount == 0) "Zero tasks planned" else "$completedCount of $totalCount completed",
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.White
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                                 Text(
                                     text = "${(progressFraction * 100).toInt()}%",
                                     fontSize = 22.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = Color(0xFF8B5CF6)
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
                             Spacer(modifier = Modifier.height(10.dp))
@@ -238,8 +350,8 @@ fun RoutineDashboardScreen(
                                     .fillMaxWidth()
                                     .height(8.dp)
                                     .clip(RoundedCornerShape(4.dp)),
-                                color = Color(0xFF8B5CF6),
-                                trackColor = Color(0x1AFFFFFF)
+                                color = MaterialTheme.colorScheme.primary,
+                                trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
                             )
                         }
                     }
@@ -254,21 +366,66 @@ fun RoutineDashboardScreen(
                     )
                 }
 
+                // Core Daily Actions (Square Buttons Grid)
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "CORE DAILY ACTIONS",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            letterSpacing = 1.5.sp
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            val squareButtons = listOf(
+                                Triple("wakeup", "Snooze", Icons.Default.Alarm),
+                                Triple("morning", "Morning Routine", Icons.Default.WbSunny),
+                                Triple("exercise", "Exercise", Icons.Default.FitnessCenter)
+                            )
+                            squareButtons.forEach { (key, title, icon) ->
+                                val accentColor = when (key) {
+                                    "wakeup" -> Color(0xFF38BDF8)   // Sky
+                                    "morning" -> Color(0xFFFDE047)  // Yellow
+                                    else -> Color(0xFFF87171)       // Coral (Exercise)
+                                }
+                                val catTasks = routines.filter { it.category == key }
+                                SquareCategoryButton(
+                                    title = title,
+                                    icon = icon,
+                                    accentColor = accentColor,
+                                    completedCount = catTasks.count { it.isCompleted },
+                                    totalCount = catTasks.size,
+                                    onClick = {
+                                        activeScreen = key
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // Hydration Panel
                 item {
                     val waterItem = routines.find { it.category == "water" }
                     WaterIntakeCard(
                         waterItem = waterItem,
                         onIncrement = { waterItem?.let { viewModel.incrementWater(it) } },
-                        onDecrement = { waterItem?.let { viewModel.decrementWater(it) } }
+                        onDecrement = { waterItem?.let { viewModel.decrementWater(it) } },
+                        onUpdateTarget = { newTarget -> waterItem?.let { viewModel.updateWaterTarget(it, newTarget) } }
                     )
                 }
 
                 // Routine Category Panels
                 val categories = listOf(
-                    Triple("wakeup", "Snooze & Wake Reminders", Icons.Default.Alarm),
-                    Triple("morning", "Morning Routines", Icons.Default.WbSunny),
-                    Triple("exercise", "5-Min Quick Exercises", Icons.Default.FitnessCenter),
                     Triple("breakfast", "Healthy Breakfast Suggestions", Icons.Default.Egg),
                     Triple("study", "Study Routine Planner", Icons.Default.School),
                     Triple("sleep", "Evening Wind-downs", Icons.Default.Bedtime),
@@ -281,9 +438,6 @@ fun RoutineDashboardScreen(
 
                     // Define distinctive primary colors for each card outline
                     val accentColor = when (key) {
-                        "wakeup" -> Color(0xFF38BDF8)   // Sky
-                        "morning" -> Color(0xFFFDE047)  // Yellow
-                        "exercise" -> Color(0xFFF87171) // Coral
                         "breakfast" -> Color(0xFFFB923C)// Orange
                         "study" -> Color(0xFF22C55E)    // Green
                         "sleep" -> Color(0xFF818CF8)    // Indigo
@@ -312,7 +466,7 @@ fun RoutineDashboardScreen(
                     Text(
                         text = "Crafted for a healthy & mindful day.",
                         fontSize = 12.sp,
-                        color = Color(0x66FFFFFF),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -320,6 +474,8 @@ fun RoutineDashboardScreen(
                 }
             }
         }
+    }
+}
 
         // Add Custom Block Dialog Overlay
         if (showAddTaskDialog) {
@@ -364,6 +520,43 @@ fun RoutineDashboardScreen(
                 }
             )
         }
+
+        // Category Detail Checklist Task Dialog Overlay
+        activeCategoryDialog?.let { currentCat ->
+            val dialogTitle = when (currentCat) {
+                "wakeup" -> "Snooze"
+                "morning" -> "Morning Routine"
+                "exercise" -> "Exercise"
+                else -> currentCat.replaceFirstChar { it.uppercase() }
+            }
+            val accentColor = when (currentCat) {
+                "wakeup" -> Color(0xFF38BDF8)   // Sky
+                "morning" -> Color(0xFFFDE047)  // Yellow
+                "exercise" -> Color(0xFFF87171) // Coral
+                else -> Color(0xFFC084FC)
+            }
+            val catTasks = routines.filter { it.category == currentCat }
+
+            CategoryTasksDialog(
+                category = currentCat,
+                title = dialogTitle,
+                accentColor = accentColor,
+                tasks = catTasks,
+                isAILoading = isAILoading && selectedCategoryForAI == currentCat,
+                onToggleComplete = { viewModel.toggleComplete(it) },
+                onDelete = { viewModel.deleteRoutine(it) },
+                onAskAI = { cat ->
+                    selectedCategoryForAI = cat
+                    viewModel.fetchAISuggestion(cat)
+                },
+                onAddTask = {
+                    showAddTaskDialog = true
+                },
+                onDismiss = {
+                    activeCategoryDialog = null
+                }
+            )
+        }
     }
 }
 
@@ -377,10 +570,10 @@ fun AISuggestionsDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F0C1B)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, Color(0x3300E5FF), RoundedCornerShape(24.dp))
+                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f), RoundedCornerShape(24.dp))
         ) {
             Column(
                 modifier = Modifier
@@ -396,7 +589,7 @@ fun AISuggestionsDialog(
                         Icon(
                             imageVector = Icons.Default.AutoAwesome,
                             contentDescription = "AI Action",
-                            tint = Color(0xFF00E5FF),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -404,14 +597,14 @@ fun AISuggestionsDialog(
                             text = "AI Personalizer",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
 
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Close description",
-                        tint = Color.Gray,
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                         modifier = Modifier
                             .size(20.dp)
                             .clickable { onDismiss() }
@@ -423,7 +616,7 @@ fun AISuggestionsDialog(
                 Text(
                     text = "Suggested recommendation:",
                     fontSize = 12.sp,
-                    color = Color(0xFFA78BFA),
+                    color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
                 )
 
@@ -433,13 +626,13 @@ fun AISuggestionsDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0x0AFFFFFF))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                         .padding(12.dp)
                 ) {
                     Text(
                         text = suggestionText,
                         fontSize = 14.sp,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         lineHeight = 20.sp
                     )
                 }
@@ -453,16 +646,16 @@ fun AISuggestionsDialog(
                     Button(
                         onClick = onDismiss,
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                        modifier = Modifier.border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
+                        modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
                     ) {
-                        Text("Dismiss", color = Color.White)
+                        Text("Dismiss", color = MaterialTheme.colorScheme.onSurface)
                     }
 
                     Spacer(modifier = Modifier.width(12.dp))
 
                     Button(
                         onClick = { onApply(suggestionText) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8B5CF6))
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
                         Text("Add to Tracker", color = Color.White)
                     }

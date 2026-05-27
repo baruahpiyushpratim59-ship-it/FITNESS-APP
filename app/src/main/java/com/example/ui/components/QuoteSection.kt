@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -91,7 +92,7 @@ fun QuoteSection(
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = "Refresh Quote",
-                        tint = Color(0x99FFFFFF),
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         modifier = Modifier
                             .size(20.dp)
                             .rotate(rotationAngle)
@@ -109,7 +110,7 @@ fun QuoteSection(
                 fontStyle = FontStyle.Italic,
                 lineHeight = 22.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Start,
                 modifier = Modifier.fillMaxWidth()
             )

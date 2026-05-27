@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -98,7 +99,7 @@ fun RoutineCategoryCard(
                             text = title,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         val completedCount = tasks.count { it.isCompleted }
@@ -106,7 +107,7 @@ fun RoutineCategoryCard(
                         Text(
                             text = if (totalCount == 0) "No tasks" else "$completedCount of $totalCount completed",
                             fontSize = 12.sp,
-                            color = if (completedCount == totalCount && totalCount > 0) Color(0xFF34D399) else Color(0x99FFFFFF)
+                            color = if (completedCount == totalCount && totalCount > 0) Color(0xFF34D399) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                     }
                 }
@@ -117,7 +118,7 @@ fun RoutineCategoryCard(
                         modifier = Modifier
                             .clip(RoundedCornerShape(10.dp))
                             .background(
-                                if (isAILoading) Color(0x22FFFFFF)
+                                if (isAILoading) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                                 else accentColor.copy(alpha = 0.15f)
                             )
                             .clickable {
@@ -147,7 +148,7 @@ fun RoutineCategoryCard(
                                 text = "Ask AI",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -189,7 +190,7 @@ fun RoutineTaskRow(
             .fillMaxWidth()
             .padding(vertical = 6.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0x05FFFFFF))
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f))
             .padding(8.dp),
         verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -206,7 +207,7 @@ fun RoutineTaskRow(
                     .background(checkboxBg)
                     .border(
                         1.5.dp,
-                        if (task.isCompleted) accentColor else Color(0x44FFFFFF),
+                        if (task.isCompleted) accentColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f),
                         CircleShape
                     )
                     .clickable { onToggleComplete() }
@@ -231,7 +232,7 @@ fun RoutineTaskRow(
                         text = task.title,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (task.isCompleted) Color(0x66FFFFFF) else Color.White,
+                        color = if (task.isCompleted) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f) else MaterialTheme.colorScheme.onSurface,
                         textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -261,7 +262,7 @@ fun RoutineTaskRow(
                     Text(
                         text = task.notes,
                         fontSize = 12.sp,
-                        color = Color(0xB3FFFFFF),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         lineHeight = 16.sp
                     )
                 }
@@ -278,7 +279,7 @@ fun RoutineTaskRow(
             Icon(
                 imageVector = Icons.Default.Delete,
                 contentDescription = "Delete routine item",
-                tint = Color(0x44FFFFFF),
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f),
                 modifier = Modifier.size(14.dp)
             )
         }
