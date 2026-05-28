@@ -99,6 +99,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -110,6 +111,42 @@ import androidx.compose.ui.unit.sp
 import com.example.model.RoutineItem
 import kotlinx.coroutines.delay
 import java.util.Locale
+
+// ==========================================
+// 1.5. STUDY & SLEEP SCREENS
+// ==========================================
+@Composable
+fun StudyScreen(onBack: () -> Unit) {
+    var timerRunning by remember { mutableStateOf(false) }
+    var min by remember { mutableStateOf(25) }
+    var sec by remember { mutableStateOf(0) }
+    // ... UI for timer and task setting ...
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+        Text("Study Tasks", modifier = Modifier.align(Alignment.Center))
+        IconButton(onClick = { onBack() }, modifier = Modifier.align(Alignment.TopStart)) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+        }
+    }
+}
+
+@Composable
+fun SleepScreen(onBack: () -> Unit) {
+    var selectedSleepMode by remember { mutableStateOf<String?>(null) }
+    // ... UI for Light/Deep sleep, timers, alarm ...
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+        if (selectedSleepMode == null) {
+            Column(modifier = Modifier.align(Alignment.Center)) {
+                Button(onClick = { selectedSleepMode = "Light" }) { Text("Light Sleep") }
+                Button(onClick = { selectedSleepMode = "Deep" }) { Text("Deep Sleep") }
+            }
+        } else {
+            Text("Sleep Mode: $selectedSleepMode", modifier = Modifier.align(Alignment.Center))
+        }
+        IconButton(onClick = { if (selectedSleepMode != null) selectedSleepMode = null else onBack() }, modifier = Modifier.align(Alignment.TopStart)) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+        }
+    }
+}
 
 // ==========================================
 // 1. CLOCK SCREEN (SNOOZE / TIMER / STOPWATCH)
@@ -680,6 +717,89 @@ fun MorningRoutineScreen(
     // "main" = Morning dashboard, "exercise" = list of exercises, "running_workout" = running tools panel, "work_studio" = productivity blocker, "breathing" = deep breath session, "walking_workout" = walking tracker, "yoga_routine" = yoga & stretching, "breakfast_station" = healthy breakfast
     var morningSection by remember { mutableStateOf("main") }
 
+    // Completed recipes for the healthy breakfast station
+    var completedBreakfastRecipes by remember { mutableStateOf(setOf<String>()) }
+
+    // High-fidelity animations using InfiniteTransition
+    val infiniteTransition = rememberInfiniteTransition(label = "category_animations")
+
+    val runBounceY by infiniteTransition.animateFloat(
+        initialValue = -3f,
+        targetValue = 3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 400, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "runBounce"
+    )
+    val runRotation by infiniteTransition.animateFloat(
+        initialValue = -12f,
+        targetValue = 12f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 400, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "runRotation"
+    )
+
+    val walkSwayX by infiniteTransition.animateFloat(
+        initialValue = -2f,
+        targetValue = 2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 600, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "walkSway"
+    )
+    val walkRotation by infiniteTransition.animateFloat(
+        initialValue = -6f,
+        targetValue = 6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 600, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "walkRotation"
+    )
+
+    val jumpBounceY by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = -24f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "jumpBounce"
+    )
+    val jumpSquishY by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.75f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 250, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "jumpSquish"
+    )
+
+    val stretchScale by infiniteTransition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 850, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "stretchScale"
+    )
+
+    val breathingScale by infiniteTransition.animateFloat(
+        initialValue = 0.85f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "breathingScale"
+    )
+
     val context = LocalContext.current
 
     // GPS real-time status details
@@ -850,7 +970,7 @@ fun MorningRoutineScreen(
                     val prev = lastKnownLocation
                     if (prev != null) {
                         val dist = prev.distanceTo(location) // Dist in meters
-                        if (location.accuracy < 35f && dist > 1.0f) {
+                        if (location.accuracy < 35f && dist > 5.0f) { // Increased threshold from 1.0m to 5.0m
                             if (runTimerRunning || stopwatchRunning) {
                                 runKm += (dist / 1000f)
                             } else if (walkTimerRunning || walkStopwatchRunning) {
@@ -1564,7 +1684,11 @@ fun MorningRoutineScreen(
                                             modifier = Modifier
                                                 .size(36.dp)
                                                 .clip(CircleShape)
-                                                .background(Color(0xFFF87171).copy(alpha = 0.15f)),
+                                                .background(Color(0xFFF87171).copy(alpha = 0.15f))
+                                                .graphicsLayer {
+                                                    translationY = runBounceY
+                                                    rotationZ = runRotation
+                                                },
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text("🏃", fontSize = 18.sp)
@@ -1585,31 +1709,6 @@ fun MorningRoutineScreen(
                                     ) {
                                         Text("Primary", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF87171))
                                     }
-                                }
-
-                                Spacer(modifier = Modifier.height(10.dp))
-
-                                Text(
-                                    text = "Equipped with a customizable countdown timer, active stopwatch, and simulated live tracking for Steps, Calories, and Distance.",
-                                    fontSize = 13.sp,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                    lineHeight = 18.sp
-                                )
-
-                                Spacer(modifier = Modifier.height(14.dp))
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "Open Cardio Suite",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFF87171)
-                                    )
-                                    Text("→", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF87171))
                                 }
                             }
                         }
@@ -1636,7 +1735,11 @@ fun MorningRoutineScreen(
                                             modifier = Modifier
                                                 .size(36.dp)
                                                 .clip(CircleShape)
-                                                .background(Color(0xFF34D399).copy(alpha = 0.15f)),
+                                                .background(Color(0xFF34D399).copy(alpha = 0.15f))
+                                                .graphicsLayer {
+                                                    scaleX = stretchScale
+                                                    scaleY = stretchScale
+                                                },
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text("🧘", fontSize = 18.sp)
@@ -1658,36 +1761,11 @@ fun MorningRoutineScreen(
                                         Text("Yoga", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF34D399))
                                     }
                                 }
-
-                                Spacer(modifier = Modifier.height(10.dp))
-
-                                Text(
-                                    text = "Engage in Pranayama, deep structural stretching, or active jumping blocks with no-customization pre-set timers (5M/10M) and animations.",
-                                    fontSize = 13.sp,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                    lineHeight = 18.sp
-                                )
-
-                                Spacer(modifier = Modifier.height(14.dp))
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "Open Yoga Suite",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF34D399)
-                                    )
-                                    Text("→", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF34D399))
-                                }
                             }
                         }
                     }
 
-                    // Exercise 2.5: Walking Tracker
+                    // Exercise 2.5: Walking Workout
                     item {
                         Card(
                             modifier = Modifier
@@ -1708,14 +1786,18 @@ fun MorningRoutineScreen(
                                             modifier = Modifier
                                                 .size(36.dp)
                                                 .clip(CircleShape)
-                                                .background(Color(0xFF38BDF8).copy(alpha = 0.15f)),
+                                                .background(Color(0xFF38BDF8).copy(alpha = 0.15f))
+                                                .graphicsLayer {
+                                                    translationX = walkSwayX
+                                                    rotationZ = walkRotation
+                                                },
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text("🚶", fontSize = 18.sp)
                                         }
                                         Spacer(modifier = Modifier.width(12.dp))
                                         Text(
-                                            text = "Walking Tracker",
+                                            text = "Walking Workout",
                                             fontWeight = FontWeight.Black,
                                             fontSize = 17.sp,
                                             color = MaterialTheme.colorScheme.onSurface
@@ -1729,31 +1811,6 @@ fun MorningRoutineScreen(
                                     ) {
                                         Text("Cardio", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF38BDF8))
                                     }
-                                }
-
-                                Spacer(modifier = Modifier.height(10.dp))
-
-                                Text(
-                                    text = "Track active steps, actual GPS distance in real-time, and calories with hand-held accelerometer sensors and location trackers.",
-                                    fontSize = 13.sp,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                    lineHeight = 18.sp
-                                )
-
-                                Spacer(modifier = Modifier.height(14.dp))
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "Open Walking Suite",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF38BDF8)
-                                    )
-                                    Text("→", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF38BDF8))
                                 }
                             }
                         }
@@ -3068,24 +3125,7 @@ fun MorningRoutineScreen(
                         .padding(horizontal = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Quick intro info
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.03f))
-                        ) {
-                            Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text("💡", fontSize = 24.sp)
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    text = "All routines feature fixed durations of 5 or 10 minutes only (non-customizable) as requested for optimal discipline.",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                    lineHeight = 16.sp
-                                )
-                            }
-                        }
-                    }
+
 
                     // Display active exercise panel if running
                     if (yogaTimerRunning) {
@@ -3174,7 +3214,7 @@ fun MorningRoutineScreen(
                     val yogaPres = listOf(
                         Triple("Pranayan", "Pranayama deep breath and lung expansion. Calms neurological networks instantly.", "🧘‍♀️"),
                         Triple("Stretching", "Gentle full-body mobility and deep, restorative muscle stretches.", "🙆‍♂️"),
-                        Triple("Jumping", "Rhythmic vertical jumps to warm up muscle units and boost thermo logs.", "🏃‍♂️")
+                        Triple("Jumping", "Rhythmic vertical jumps to warm up muscle units and boost thermo logs.", "🤸")
                     )
 
                     items(yogaPres.size) { index ->
@@ -3191,7 +3231,37 @@ fun MorningRoutineScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(emoji, fontSize = 24.sp)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    when (title) {
+                                                        "Pranayan" -> Color(0xFF34D399).copy(alpha = 0.15f)
+                                                        "Stretching" -> Color(0xFFFB923C).copy(alpha = 0.15f)
+                                                        else -> Color(0xFFF87171).copy(alpha = 0.15f)
+                                                    }
+                                                )
+                                                .graphicsLayer {
+                                                    when (title) {
+                                                        "Pranayan" -> {
+                                                            scaleX = breathingScale
+                                                            scaleY = breathingScale
+                                                        }
+                                                        "Stretching" -> {
+                                                            scaleX = stretchScale
+                                                            scaleY = stretchScale
+                                                        }
+                                                        "Jumping" -> {
+                                                            translationY = jumpBounceY
+                                                            scaleY = jumpSquishY
+                                                        }
+                                                    }
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(emoji, fontSize = 18.sp)
+                                        }
                                         Spacer(modifier = Modifier.width(10.dp))
                                         Text(
                                             text = title,
@@ -3329,54 +3399,7 @@ fun MorningRoutineScreen(
                         }
                     }
 
-                    // Cooking timer panel if active
-                    if (breakfastMealPrepTimerActive) {
-                        item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF2E221A)),
-                                border = BorderStroke(2.dp, Color(0xFFFB923C))
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(18.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text(
-                                        text = "⏱️ MEAL PREP TIMER TICKING",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFFB923C),
-                                        letterSpacing = 2.sp
-                                    )
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    val prepMins = (breakfastMealPrepTimerMs / 60000).toInt()
-                                    val prepSecs = ((breakfastMealPrepTimerMs % 60000) / 1000).toInt()
-                                    Text(
-                                        text = String.format(Locale.US, "%02d:%02d", prepMins, prepSecs),
-                                        fontSize = 36.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = Color.White
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = "Preparing: ${breakfastSelectedRecipe ?: "Protein Meal"}",
-                                        fontSize = 12.sp,
-                                        color = Color.White.copy(alpha = 0.8f)
-                                    )
-                                    Spacer(modifier = Modifier.height(14.dp))
-                                    Button(
-                                        onClick = { breakfastMealPrepTimerActive = false },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        Text("Cancel Cooking Timer", color = Color.White)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Curated recipes with prep timers (Healthy guidelines)
+                    // Curated recipes with tick/untick capability
                     item {
                         Text(
                             text = "NUTRIMENT MEAL OPTIONS",
@@ -3388,28 +3411,80 @@ fun MorningRoutineScreen(
                     }
 
                     val recipes = listOf(
-                        Triple("Avocado Omelet Toast Ensembles", "2 whole eggs cooked with fresh chopped baby spinach, served on warm toasted multigrain bread topped with mashed ripe avocado. Rich in healthy proteins and dietary fibers.\n🔥 Curated Macros: 28g Protein, 12g Fiber, 420 Kcal.", 6),
-                        Triple("Almond-Banana Greek Bowl", "Plain non-fat Greek yogurt base overlaid with natural almond halves, half a sliced banana, chia seeds, and a golden drizzle of raw honey.\n🔥 Curated Macros: 32g Protein, 6g Fiber, 340 Kcal.", 4),
-                        Triple("Superseed Oatmeal Concoction", "Quick porridge cooked with protein soy/oat milk, blended with milled flaxseeds, raw hemp seeds, walnuts, and seasonal raspberries.\n🔥 Curated Macros: 22g Protein, 11g Fiber, 380 Kcal.", 8)
+                        Triple("Avocado Omelet Toast Ensembles", "2 whole eggs cooked with fresh chopped baby spinach, served on warm toasted multigrain bread topped with mashed ripe avocado. Rich in healthy proteins and dietary fibers.\n🔥 Curated Macros: 28g Protein, 12g Fiber, 420 Kcal.", "🥑"),
+                        Triple("Almond-Banana Greek Bowl", "Plain non-fat Greek yogurt base overlaid with natural almond halves, half a sliced banana, chia seeds, and a golden drizzle of raw honey.\n🔥 Curated Macros: 32g Protein, 6g Fiber, 340 Kcal.", "🥣"),
+                        Triple("Superseed Oatmeal Concoction", "Quick porridge cooked with protein soy/oat milk, blended with milled flaxseeds, raw hemp seeds, walnuts, and seasonal raspberries.\n🔥 Curated Macros: 22g Protein, 11g Fiber, 380 Kcal.", "🌾")
                     )
 
                     items(recipes.size) { rIndex ->
-                        val (title, body, minutes) = recipes[rIndex]
+                        val (title, body, emoji) = recipes[rIndex]
+                        val isChecked = completedBreakfastRecipes.contains(title)
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .clickable {
+                                    completedBreakfastRecipes = if (isChecked) {
+                                        completedBreakfastRecipes - title
+                                    } else {
+                                        completedBreakfastRecipes + title
+                                    }
+                                    
+                                    // Synchronize completion status with the main task routine
+                                    val hasMatchingBreakfastRoutine = tasks.firstOrNull { it.category == "breakfast" }
+                                    if (hasMatchingBreakfastRoutine != null) {
+                                        val breakfastCurrentlyShouldBeCompleted = completedBreakfastRecipes.isNotEmpty()
+                                        if (hasMatchingBreakfastRoutine.isCompleted != breakfastCurrentlyShouldBeCompleted) {
+                                            onToggleComplete(hasMatchingBreakfastRoutine)
+                                        }
+                                    }
+                                },
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f)),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+                            border = BorderStroke(1.dp, if (isChecked) Color(0xFF22C55E).copy(alpha = 0.3f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("🥑", fontSize = 22.sp)
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        text = title,
-                                        fontWeight = FontWeight.Black,
-                                        fontSize = 16.sp,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                        Text(emoji, fontSize = 22.sp)
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(
+                                            text = title,
+                                            fontWeight = FontWeight.Black,
+                                            fontSize = 16.sp,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                    
+                                    // Elegant green checkbox or circle indicator
+                                    Box(
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                if (isChecked) Color(0xFF22C55E).copy(alpha = 0.15f)
+                                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+                                            )
+                                            .border(
+                                                1.dp,
+                                                if (isChecked) Color(0xFF22C55E)
+                                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                                                CircleShape
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (isChecked) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = "Selected",
+                                                tint = Color(0xFF22C55E),
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                    }
                                 }
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
@@ -3418,45 +3493,6 @@ fun MorningRoutineScreen(
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                     lineHeight = 16.sp
                                 )
-                                Spacer(modifier = Modifier.height(14.dp))
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Button(
-                                        onClick = {
-                                            breakfastSelectedRecipe = title
-                                            breakfastMealPrepTimerMs = minutes * 60 * 1000L
-                                            breakfastMealPrepTimerActive = true
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFB923C).copy(alpha = 0.15f), contentColor = MaterialTheme.colorScheme.onSurface),
-                                        border = BorderStroke(1.dp, Color(0xFFFB923C).copy(alpha = 0.3f)),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        Text("Launch Prep Clock (${minutes}M)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                    }
-
-                                    // Mark completed option
-                                    val hasMatchingBreakfastRoutine = tasks.firstOrNull { it.category == "breakfast" }
-                                    Button(
-                                        onClick = {
-                                            hasMatchingBreakfastRoutine?.let { onToggleComplete(it) }
-                                        },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (hasMatchingBreakfastRoutine?.isCompleted == true) Color(0xFF22C55E).copy(alpha = 0.15f) else Color.Transparent,
-                                            contentColor = if (hasMatchingBreakfastRoutine?.isCompleted == true) Color(0xFF22C55E) else MaterialTheme.colorScheme.onSurface
-                                        ),
-                                        border = BorderStroke(1.dp, if (hasMatchingBreakfastRoutine?.isCompleted == true) Color(0xFF22C55E) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        Text(
-                                            text = if (hasMatchingBreakfastRoutine?.isCompleted == true) "✓ Logged!" else "Log Breakfast",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
                             }
                         }
                     }
@@ -3480,6 +3516,18 @@ fun ExerciseScreen(
     onAddTask: () -> Unit,
     onBack: () -> Unit
 ) {
+    val sports = listOf(
+        "Running", "Walking", "Cycling", "Badminton", "Cricket", "Football", "Basketball", "Volleyball", "Swimming", "Tennis",
+        "Table Tennis", "Gym Workout", "Yoga", "Skipping Rope", "Hiking", "Jogging", "Dance", "Zumba", "Boxing", "Kickboxing",
+        "Martial Arts", "Karate", "Taekwondo", "Wrestling", "Kabaddi", "Baseball", "Softball", "Rugby", "Golf", "Archery",
+        "Skating", "Roller Skating", "Ice Skating", "Horse Riding", "Surfing", "Skiing", "Snowboarding", "Climbing", "Rock Climbing", "Rowing",
+        "Canoeing", "Kayaking", "Sprinting", "Long Jump", "High Jump", "Shot Put", "Discus Throw", "Javelin Throw", "Pole Vault", "Triathlon",
+        "Bodybuilding", "CrossFit", "Pilates", "Stretching", "Meditation", "Aerobics", "Parkour", "Calisthenics", "Push-Up Training", "Pull-Up Training",
+        "Plank Training", "Strength Training", "Cardio Workout", "HIIT Workout", "Functional Training", "Stair Climbing", "Treadmill Running", "Indoor Cycling", "Elliptical Training", "Battle Rope",
+        "Bench Press", "Deadlift", "Squats", "Lunges", "Mountain Climber Exercise", "Burpees", "Jumping Jacks", "Handball", "Netball", "Futsal",
+        "Chess", "Billiards", "Snooker", "Bowling", "Fishing", "Frisbee", "Ultimate Frisbee", "Shooting", "Air Rifle", "Darts",
+        "eSports", "Adventure Racing", "Obstacle Course", "Trail Running", "Nature Walk", "Scooter Riding", "BMX", "Motocross", "Scuba Diving", "Free Diving"
+    )
     var calsBurned by remember { mutableStateOf(0) }
     var exerciseTimerActive by remember { mutableStateOf(false) }
     var secondsRemaining by remember { mutableStateOf(30) }
@@ -3550,6 +3598,17 @@ fun ExerciseScreen(
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            items(sports) { sport ->
+                Card(modifier = Modifier.fillMaxWidth().padding(4.dp)) {
+                    Text(text = sport, modifier = Modifier.padding(16.dp))
+                }
+            }
+            item {
+                Button(onClick = { onAddTask() }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Add Custom Task")
+                }
+            }
+        }
             // Calorie simulator and completions stats in one
             item {
                 Card(

@@ -36,6 +36,7 @@ moshiKotlinCodegen = "1.15.2"
 datastorePreferences = "1.1.7"
 robolectric = "4.16.1"
 roborazzi = "1.59.0"
+vico = "2.0.0-alpha.18"
 firebaseBom = "34.12.0"
 secretsGradlePlugin = "2.0.1"
 
@@ -87,6 +88,8 @@ roborazzi-compose = { group = "io.github.takahirom.roborazzi", name = "roborazzi
 roborazzi-junit-rule = { group = "io.github.takahirom.roborazzi", name = "roborazzi-junit-rule", version.ref = "roborazzi" }
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-ai = { group = "com.google.firebase", name = "firebase-ai" }
+vico-compose = { group = "com.patrykandpatryk.vico", name = "compose-m3", version.ref = "vico" }
+vico-core = { group = "com.patrykandpatryk.vico", name = "core", version.ref = "vico" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

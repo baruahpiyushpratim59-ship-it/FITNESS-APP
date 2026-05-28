@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.AppDatabase
 import com.example.data.RoutineRepository
 import com.example.model.RoutineItem
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -65,6 +66,10 @@ class RoutineViewModel(application: Application) : AndroidViewModel(application)
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    fun getRoutinesForDateFlow(date: String): Flow<List<RoutineItem>> {
+        return repository.getRoutinesForDate(date)
+    }
 
     fun setDate(date: String) {
         _currentDate.value = date
