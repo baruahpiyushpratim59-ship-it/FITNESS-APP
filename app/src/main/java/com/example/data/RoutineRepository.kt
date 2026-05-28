@@ -16,6 +16,9 @@ class RoutineRepository(private val routineDao: RoutineDao) {
     fun getRoutinesForDate(date: String): Flow<List<RoutineItem>> =
         routineDao.getRoutinesForDate(date)
 
+    fun getAllRoutines(): Flow<List<RoutineItem>> =
+        routineDao.getAllRoutines()
+
     suspend fun insert(item: RoutineItem) = withContext(Dispatchers.IO) {
         routineDao.insertRoutine(item)
     }

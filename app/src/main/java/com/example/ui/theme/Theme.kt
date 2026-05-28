@@ -21,15 +21,15 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = PurplePrimary,
-    secondary = BlueSecondary,
-    tertiary = CyanAccent,
-    background = Color(0xFFF3F4F6), // Sophisticated light grey background
-    surface = Color(0xFFFFFFFF),    // Beautiful white card surface
+    primary = Color(0xFF0284C7),     // Beautiful light blue (Sky 600)
+    secondary = Color(0xFF38BDF8),   // Bright light blue (Sky 400)
+    tertiary = Color(0xFF0EA5E9),    // Sky 500
+    background = Color(0xFFF0F9FF),  // Sky 50 - clean light ice/sky blue
+    surface = Color(0xFFFFFFFF),     // Pure white surfaces
     onPrimary = Color.White,
     onSecondary = Color.White,
-    onBackground = Color(0xFF1F2937), // Charcoal text
-    onSurface = Color(0xFF111827)    // Dark text
+    onBackground = Color(0xFF0F172A), // Slate 900 (highly readable dark text)
+    onSurface = Color(0xFF1E293B)     // Slate 800
 )
 
 @Composable

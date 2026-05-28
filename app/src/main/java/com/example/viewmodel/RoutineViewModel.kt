@@ -22,6 +22,15 @@ import java.util.Locale
 @OptIn(ExperimentalCoroutinesApi::class)
 class RoutineViewModel(application: Application) : AndroidViewModel(application) {
 
+    data class CustomSong(
+        val id: Int,
+        val title: String,
+        val artist: String = "Unknown",
+        val uriStr: String? = null,
+        val isLocked: Boolean = false,
+        val isEmptySlot: Boolean = false
+    )
+
     private val repository: RoutineRepository
 
     private val _isDarkTheme = MutableStateFlow(true)
@@ -29,6 +38,182 @@ class RoutineViewModel(application: Application) : AndroidViewModel(application)
 
     fun toggleTheme() {
         _isDarkTheme.value = !_isDarkTheme.value
+    }
+
+    // Music Player state flows
+    private val _songsList = MutableStateFlow<List<CustomSong>>(
+        listOf(
+            CustomSong(1, "Morning Radiance 🌅", "Stay Raxo Ambient"),
+            CustomSong(2, "Deep Focus Flow 🧘", "Zen Lofi Beats"),
+            CustomSong(3, "Stay Raxo Chill 🍹", "Cosmic Focus"),
+            CustomSong(4, "Import Custom Audio 1", "Available Slot", isEmptySlot = true),
+            CustomSong(5, "Import Custom Audio 2", "Available Slot", isEmptySlot = true),
+            CustomSong(6, "Locked Premium Slot 6 🔒", "Premium Only", isLocked = true),
+            CustomSong(7, "Locked Premium Slot 7 🔒", "Premium Only", isLocked = true),
+            CustomSong(8, "Locked Premium Slot 8 🔒", "Premium Only", isLocked = true),
+            CustomSong(9, "Locked Premium Slot 9 🔒", "Premium Only", isLocked = true),
+            CustomSong(10, "Locked Premium Slot 10 🔒", "Premium Only", isLocked = true)
+        )
+    )
+    val songsList: StateFlow<List<CustomSong>> = _songsList.asStateFlow()
+
+    private val _playbackProgress = MutableStateFlow(0L)
+    val playbackProgress: StateFlow<Long> = _playbackProgress.asStateFlow()
+
+    private val _playbackDuration = MutableStateFlow(160L) // Default 2:40
+    val playbackDuration: StateFlow<Long> = _playbackDuration.asStateFlow()
+
+    private val _isPlaying = MutableStateFlow(false)
+    val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
+
+    private val _currentSongIndex = MutableStateFlow(0)
+    val currentSongIndex: StateFlow<Int> = _currentSongIndex.asStateFlow()
+
+    private var mediaPlayer: android.media.MediaPlayer? = null
+    private var progressJob: kotlinx.coroutines.Job? = null
+
+    private fun startProgressTicker() {
+        progressJob?.cancel()
+        progressJob = viewModelScope.launch {
+            while (_isPlaying.value) {
+                kotlinx.coroutines.delay(1000)
+                if (_isPlaying.value) {
+                    val currentProg = _playbackProgress.value
+                    val duration = _playbackDuration.value
+                    if (currentProg < duration) {
+                        _playbackProgress.value = currentProg + 1
+                        mediaPlayer?.let {
+                            if (it.isPlaying) {
+                                _playbackProgress.value = (it.currentPosition / 1000L).coerceAtMost(duration)
+                            }
+                        }
+                    } else {
+                        nextSong()
+                    }
+                }
+            }
+        }
+    }
+
+    fun previousSong() {
+        val songs = _songsList.value
+        var newIndex = _currentSongIndex.value - 1
+        if (newIndex < 0) {
+            newIndex = 4 // wrap to last of the 5 allowed slots (0..4)
+        }
+        while (newIndex >= 0 && songs[newIndex].isLocked) {
+            newIndex--
+        }
+        if (newIndex < 0) newIndex = 0
+        selectSong(newIndex)
+    }
+
+    fun nextSong() {
+        val songs = _songsList.value
+        var newIndex = _currentSongIndex.value + 1
+        if (newIndex > 4 || songs[newIndex].isLocked) {
+            newIndex = 0
+        }
+        selectSong(newIndex)
+    }
+
+    fun selectSong(index: Int) {
+        if (index < 0 || index >= _songsList.value.size) return
+        val song = _songsList.value[index]
+        if (song.isLocked) return // blocked in premium
+
+        _currentSongIndex.value = index
+        _playbackProgress.value = 0L
+
+        try {
+            mediaPlayer?.stop()
+            mediaPlayer?.release()
+            mediaPlayer = null
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        if (song.uriStr != null) {
+            try {
+                mediaPlayer = android.media.MediaPlayer().apply {
+                    setDataSource(getApplication(), android.net.Uri.parse(song.uriStr))
+                    prepare()
+                    _playbackDuration.value = (duration / 1000L).coerceAtLeast(30L)
+                    if (_isPlaying.value) {
+                        start()
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // simulation fallback if format is unsupportable
+                _playbackDuration.value = 180L
+            }
+        } else {
+            _playbackDuration.value = when (index) {
+                0 -> 160L
+                1 -> 210L
+                2 -> 190L
+                else -> 180L
+            }
+        }
+
+        if (_isPlaying.value) {
+            if (song.uriStr != null) {
+                try {
+                    mediaPlayer?.start()
+                } catch (e: Exception) {}
+            }
+            startProgressTicker()
+        }
+    }
+
+    fun togglePlayPause() {
+        val currentIsPlaying = _isPlaying.value
+        _isPlaying.value = !currentIsPlaying
+
+        if (_isPlaying.value) {
+            val song = _songsList.value[_currentSongIndex.value]
+            if (song.uriStr != null) {
+                try {
+                    if (mediaPlayer == null) {
+                        selectSong(_currentSongIndex.value)
+                    }
+                    mediaPlayer?.start()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+            startProgressTicker()
+        } else {
+            mediaPlayer?.pause()
+            progressJob?.cancel()
+        }
+    }
+
+    fun updateSongInSlot(index: Int, title: String, uriStr: String) {
+        val currentSongs = _songsList.value.toMutableList()
+        if (index in 0 until currentSongs.size && !currentSongs[index].isLocked) {
+            currentSongs[index] = CustomSong(
+                id = index + 1,
+                title = title,
+                artist = "Local Import 🎵",
+                uriStr = uriStr,
+                isEmptySlot = false
+            )
+            _songsList.value = currentSongs
+            selectSong(index)
+            if (!_isPlaying.value) {
+                togglePlayPause()
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        try {
+            mediaPlayer?.stop()
+            mediaPlayer?.release()
+        } catch (e: Exception) {}
     }
 
     private val _currentDate = MutableStateFlow("")
@@ -71,10 +256,27 @@ class RoutineViewModel(application: Application) : AndroidViewModel(application)
         return repository.getRoutinesForDate(date)
     }
 
+    val allRoutines: StateFlow<List<RoutineItem>> = repository.getAllRoutines()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
     fun setDate(date: String) {
         _currentDate.value = date
         viewModelScope.launch {
             repository.prepopulateIfEmpty(date)
+        }
+    }
+
+    fun checkAndResetToToday() {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        if (_currentDate.value != today) {
+            _currentDate.value = today
+            viewModelScope.launch {
+                repository.prepopulateIfEmpty(today)
+            }
         }
     }
 

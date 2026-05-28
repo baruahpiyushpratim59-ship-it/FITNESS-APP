@@ -27,4 +27,7 @@ interface RoutineDao {
 
     @Query("SELECT EXISTS(SELECT 1 FROM routine_items WHERE dateString = :date)")
     suspend fun hasRoutinesForDate(date: String): Boolean
+
+    @Query("SELECT * FROM routine_items")
+    fun getAllRoutines(): Flow<List<RoutineItem>>
 }

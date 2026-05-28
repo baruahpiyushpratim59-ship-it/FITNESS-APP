@@ -4,6 +4,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.Manifest
+import android.app.NotificationManager
+import android.graphics.Color as AndroidColor
 import android.content.Context
 import android.content.pm.PackageManager
 import android.hardware.Sensor
@@ -44,6 +46,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -100,8 +103,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -118,35 +122,388 @@ import java.util.Locale
 @Composable
 fun StudyScreen(onBack: () -> Unit) {
     var timerRunning by remember { mutableStateOf(false) }
-    var min by remember { mutableStateOf(25) }
-    var sec by remember { mutableStateOf(0) }
-    // ... UI for timer and task setting ...
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        Text("Study Tasks", modifier = Modifier.align(Alignment.Center))
-        IconButton(onClick = { onBack() }, modifier = Modifier.align(Alignment.TopStart)) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+    var hours by remember { mutableLongStateOf(0L) }
+    var minutes by remember { mutableLongStateOf(25L) }
+    var seconds by remember { mutableLongStateOf(0L) }
+    var totalSecondsRemaining by remember { mutableLongStateOf(25L * 60) }
+    var taskText by remember { mutableStateOf("Reading Science") }
+    var isTaskSet by remember { mutableStateOf(false) }
+
+    LaunchedEffect(timerRunning) {
+        if (timerRunning) {
+            while (timerRunning && totalSecondsRemaining > 0) {
+                delay(1000)
+                totalSecondsRemaining--
+                if (totalSecondsRemaining <= 0) timerRunning = false
+            }
+        }
+    }
+
+    val displayH = totalSecondsRemaining / 3600
+    val displayM = (totalSecondsRemaining % 3600) / 60
+    val displayS = totalSecondsRemaining % 60
+
+    val isDark = MaterialTheme.colorScheme.onBackground == Color.White
+    val contentColor = if (isDark) Color.White else Color(0xFF0F172A)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    if (isDark) listOf(Color(0xFF0F172A), Color(0xFF1E1B4B))
+                    else listOf(Color(0xFFF0F9FF), Color(0xFFE0F2FE))
+                )
+            )
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = contentColor)
+                }
+                Text(
+                    "STUDY SESSION",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = contentColor,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(40.dp))
+
+            // Timer Display
+            Box(
+                modifier = Modifier
+                    .size(280.dp)
+                    .clip(CircleShape)
+                    .border(4.dp, Color(0xFF38BDF8), CircleShape)
+                    .background(if (isDark) Color.White.copy(alpha = 0.05f) else Color.White),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = String.format(Locale.getDefault(), "%02d:%02d:%02d", displayH, displayM, displayS),
+                        fontSize = 48.sp,
+                        fontWeight = FontWeight.Light,
+                        color = contentColor,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                    )
+                    Text(
+                        text = if (timerRunning) "FOCUSING..." else "READY",
+                        fontSize = 14.sp,
+                        color = Color(0xFF38BDF8),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(40.dp))
+
+            if (!timerRunning) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Set Study Duration", color = Color.Gray, fontSize = 14.sp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        NumberPicker(value = hours, onValueChange = { hours = it; totalSecondsRemaining = it * 3600 + minutes * 60 + seconds }, label = "H")
+                        Text(":", color = contentColor, fontSize = 24.sp, modifier = Modifier.padding(horizontal = 8.dp))
+                        NumberPicker(value = minutes, onValueChange = { minutes = it; totalSecondsRemaining = hours * 3600 + it * 60 + seconds }, label = "M")
+                        Text(":", color = contentColor, fontSize = 24.sp, modifier = Modifier.padding(horizontal = 8.dp))
+                        NumberPicker(value = seconds, onValueChange = { seconds = it; totalSecondsRemaining = hours * 3600 + minutes * 60 + it }, label = "S")
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    OutlinedTextField(
+                        value = taskText,
+                        onValueChange = { taskText = it },
+                        label = { Text("What are you studying?") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedTextColor = contentColor,
+                            focusedTextColor = contentColor,
+                            focusedBorderColor = Color(0xFF38BDF8),
+                            unfocusedBorderColor = Color.Gray,
+                            focusedLabelColor = Color(0xFF38BDF8)
+                        )
+                    )
+                }
+            } else {
+                Text(
+                    text = "Working on: $taskText",
+                    color = contentColor,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Button(
+                onClick = { timerRunning = !timerRunning },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (timerRunning) Color(0xFFEF4444) else Color(0xFF38BDF8),
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = if (timerRunning) "STOP" else "START FOCUS",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            }
         }
     }
 }
 
 @Composable
+fun NumberPicker(value: Long, onValueChange: (Long) -> Unit, label: String) {
+    val isDark = MaterialTheme.colorScheme.onBackground == Color.White
+    val contentColor = if (isDark) Color.White else Color(0xFF0F172A)
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        IconButton(onClick = { onValueChange(value + 1) }) {
+            Icon(Icons.Default.Add, contentDescription = null, tint = contentColor)
+        }
+        Text(text = String.format(Locale.getDefault(), "%02d", value), color = contentColor, fontSize = 24.sp)
+        IconButton(onClick = { if (value > 0) onValueChange(value - 1) }) {
+            Icon(Icons.Default.Delete, contentDescription = null, tint = contentColor)
+        }
+        Text(text = label, color = Color.Gray, fontSize = 10.sp)
+    }
+}
+
+@Composable
 fun SleepScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
     var selectedSleepMode by remember { mutableStateOf<String?>(null) }
-    // ... UI for Light/Deep sleep, timers, alarm ...
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        if (selectedSleepMode == null) {
-            Column(modifier = Modifier.align(Alignment.Center)) {
-                Button(onClick = { selectedSleepMode = "Light" }) { Text("Light Sleep") }
-                Button(onClick = { selectedSleepMode = "Deep" }) { Text("Deep Sleep") }
+    var sleepTimerRunning by remember { mutableStateOf(false) }
+    var alarmTime by remember { mutableStateOf("07:00") }
+    var sleepScore by remember { mutableStateOf(100) }
+    var phoneUsageDetected by remember { mutableStateOf(false) }
+
+    // DND Management
+    fun setDND(enabled: Boolean) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        if (notificationManager?.isNotificationPolicyAccessGranted == true) {
+            notificationManager.setInterruptionFilter(if (enabled) {
+                NotificationManager.INTERRUPTION_FILTER_NONE
+            } else {
+                NotificationManager.INTERRUPTION_FILTER_ALL
+            })
+        }
+    }
+
+    // Phone movement tracking
+    DisposableEffect(sleepTimerRunning) {
+        if (sleepTimerRunning) {
+            val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+            val accel = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+            val listener = object : SensorEventListener {
+                var lastX = 0f
+                var lastY = 0f
+                var lastZ = 0f
+                override fun onSensorChanged(event: SensorEvent?) {
+                    if (event == null) return
+                    val x = event.values[0]
+                    val y = event.values[1]
+                    val z = event.values[2]
+                    if (lastX != 0f) {
+                        val delta = Math.sqrt(((x - lastX) * (x - lastX) + (y - lastY) * (y - lastY) + (z - lastZ) * (z - lastZ)).toDouble())
+                        if (delta > 0.8) {
+                            phoneUsageDetected = true
+                            // Score logic
+                            if (sleepScore > 0) sleepScore -= 5
+                        }
+                    }
+                    lastX = x; lastY = y; lastZ = z
+                }
+                override fun onAccuracyChanged(s: Sensor?, a: Int) {}
+            }
+            sensorManager?.registerListener(listener, accel, SensorManager.SENSOR_DELAY_NORMAL)
+            onDispose {
+                sensorManager?.unregisterListener(listener)
             }
         } else {
-            Text("Sleep Mode: $selectedSleepMode", modifier = Modifier.align(Alignment.Center))
+            onDispose {}
         }
-        IconButton(onClick = { if (selectedSleepMode != null) selectedSleepMode = null else onBack() }, modifier = Modifier.align(Alignment.TopStart)) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+    }
+
+    val isDark = MaterialTheme.colorScheme.onBackground == Color.White
+    val contentColor = if (isDark) Color.White else Color(0xFF0F172A)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    if (isDark) listOf(Color(0xFF020617), Color(0xFF1E1B4B))
+                    else listOf(Color(0xFFF0F9FF), Color(0xFFE0F2FE))
+                )
+            )
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { if (selectedSleepMode != null && !sleepTimerRunning) selectedSleepMode = null else onBack() }) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = contentColor)
+                }
+                Text(
+                    "SLEEP TRACKER",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = contentColor,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(40.dp))
+
+            if (selectedSleepMode == null) {
+                Text("Select Sleep Quality", color = Color.Gray, fontSize = 16.sp)
+                Spacer(modifier = Modifier.height(24.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    SleepModeCard(
+                        title = "Light Sleep",
+                        icon = Icons.Default.Bedtime,
+                        color = Color(0xFF60A5FA),
+                        onClick = { selectedSleepMode = "Light" },
+                        modifier = Modifier.weight(1f)
+                    )
+                    SleepModeCard(
+                        title = "Deep Sleep",
+                        icon = Icons.Default.AutoAwesome,
+                        color = Color(0xFFA78BFA),
+                        onClick = { selectedSleepMode = "Deep" },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            } else {
+                // Active Sleep Tracker
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = if (selectedSleepMode == "Deep") Icons.Default.AutoAwesome else Icons.Default.Bedtime,
+                        contentDescription = null,
+                        modifier = Modifier.size(80.dp),
+                        tint = if (selectedSleepMode == "Deep") Color(0xFFA78BFA) else Color(0xFF60A5FA)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "$selectedSleepMode Mode Active",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = contentColor
+                    )
+                    if (selectedSleepMode == "Deep") {
+                        Text("DND & Silent Mode ON", color = Color(0xFFF87171), fontSize = 12.sp)
+                    }
+                    
+                    Spacer(modifier = Modifier.height(40.dp))
+                    
+                    Text("Sleep Score", color = Color.Gray, fontSize = 14.sp)
+                    Text(
+                        text = "$sleepScore",
+                        fontSize = 72.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (sleepScore > 80) Color(0xFF34D399) else if (sleepScore > 50) Color(0xFFFBBF24) else Color(0xFFF87171)
+                    )
+                    
+                    if (phoneUsageDetected) {
+                        Text("Movement Detected! Score Decreased.", color = Color(0xFFF87171), fontSize = 12.sp)
+                    }
+
+                    Spacer(modifier = Modifier.height(40.dp))
+                    
+                    OutlinedTextField(
+                        value = alarmTime,
+                        onValueChange = { alarmTime = it },
+                        label = { Text("Alarm Time (HH:mm)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedTextColor = contentColor,
+                            focusedTextColor = contentColor,
+                            focusedBorderColor = Color(0xFFA78BFA),
+                            unfocusedBorderColor = Color.Gray
+                        )
+                    )
+                    
+                    Spacer(modifier = Modifier.weight(1f))
+                    
+                    Button(
+                        onClick = {
+                            if (!sleepTimerRunning) {
+                                sleepTimerRunning = true
+                                phoneUsageDetected = false
+                                if (selectedSleepMode == "Deep") setDND(true)
+                            } else {
+                                sleepTimerRunning = false
+                                if (selectedSleepMode == "Deep") setDND(false)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (sleepTimerRunning) Color(0xFFEF4444) else Color(0xFF34D399),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(if (sleepTimerRunning) "WAKE UP" else "START SLEEP", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
         }
     }
 }
+
+@Composable
+fun SleepModeCard(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, onClick: () -> Unit, modifier: Modifier) {
+    val isDark = MaterialTheme.colorScheme.onBackground == Color.White
+    Card(
+        modifier = modifier
+            .height(180.dp)
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDark) Color.White.copy(alpha = 0.05f) else Color.White
+        ),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.3f)),
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(48.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(title, color = if (isDark) Color.White else Color(0xFF0F172A), fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        }
+    }
+}
+
 
 // ==========================================
 // 1. CLOCK SCREEN (SNOOZE / TIMER / STOPWATCH)
@@ -970,7 +1327,9 @@ fun MorningRoutineScreen(
                     val prev = lastKnownLocation
                     if (prev != null) {
                         val dist = prev.distanceTo(location) // Dist in meters
-                        if (location.accuracy < 35f && dist > 5.0f) { // Increased threshold from 1.0m to 5.0m
+                        // Filter: Good accuracy (< 20m), significant distance (> 3m), and must have speed > 0.5 m/s (approx 1.8 km/h)
+                        val isMoving = location.hasSpeed() && location.speed > 0.5f
+                        if (location.accuracy < 20f && dist > 3.0f && (isMoving || location.speed > 0.5f)) {
                             if (runTimerRunning || stopwatchRunning) {
                                 runKm += (dist / 1000f)
                             } else if (walkTimerRunning || walkStopwatchRunning) {
@@ -3516,7 +3875,11 @@ fun ExerciseScreen(
     onAddTask: () -> Unit,
     onBack: () -> Unit
 ) {
-    val sports = listOf(
+    val context = LocalContext.current
+    var selectedSport by remember { mutableStateOf<String?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    val allSports = listOf(
         "Running", "Walking", "Cycling", "Badminton", "Cricket", "Football", "Basketball", "Volleyball", "Swimming", "Tennis",
         "Table Tennis", "Gym Workout", "Yoga", "Skipping Rope", "Hiking", "Jogging", "Dance", "Zumba", "Boxing", "Kickboxing",
         "Martial Arts", "Karate", "Taekwondo", "Wrestling", "Kabaddi", "Baseball", "Softball", "Rugby", "Golf", "Archery",
@@ -3526,361 +3889,284 @@ fun ExerciseScreen(
         "Plank Training", "Strength Training", "Cardio Workout", "HIIT Workout", "Functional Training", "Stair Climbing", "Treadmill Running", "Indoor Cycling", "Elliptical Training", "Battle Rope",
         "Bench Press", "Deadlift", "Squats", "Lunges", "Mountain Climber Exercise", "Burpees", "Jumping Jacks", "Handball", "Netball", "Futsal",
         "Chess", "Billiards", "Snooker", "Bowling", "Fishing", "Frisbee", "Ultimate Frisbee", "Shooting", "Air Rifle", "Darts",
-        "eSports", "Adventure Racing", "Obstacle Course", "Trail Running", "Nature Walk", "Scooter Riding", "BMX", "Motocross", "Scuba Diving", "Free Diving"
+        "eSports", "Adventure Racing", "Obstacle Course", "Trail Running", "Nature Walk", "Scooter Riding", "BMX", "Motocross", "Scuba Diving", "Free Diving",
+        "Paragliding", "Bungee Jumping", "Skydiving", "Sailing", "Badminton Doubles", "Beach Volleyball", "Water Polo", "Sepak Takraw", "Kho Kho", "Gilli Danda"
     )
-    var calsBurned by remember { mutableStateOf(0) }
-    var exerciseTimerActive by remember { mutableStateOf(false) }
-    var secondsRemaining by remember { mutableStateOf(30) }
-    var activeExerciseName by remember { mutableStateOf("Planks Set") }
 
-    LaunchedEffect(exerciseTimerActive) {
-        if (exerciseTimerActive) {
-            while (exerciseTimerActive && secondsRemaining > 0) {
-                delay(1000)
-                if (exerciseTimerActive) {
-                    secondsRemaining -= 1
-                    if (secondsRemaining == 0) {
-                        exerciseTimerActive = false
-                        calsBurned += 15 // complete a timer = +15 kcal!
-                    }
-                }
-            }
-        }
-    }
+    val filteredSports = allSports.filter { it.contains(searchQuery, ignoreCase = true) }
 
-    Scaffold(
-        containerColor = Color.Transparent,
-        topBar = {
-            Row(
+    val isDark = MaterialTheme.colorScheme.onBackground == Color.White
+    val contentColor = if (isDark) Color.White else Color(0xFF0F172A)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    if (isDark) listOf(Color(0xFF0F172A), Color(0xFF1E1B4B))
+                    else listOf(Color(0xFFF0F9FF), Color(0xFFE0F2FE))
+                )
+            )
+            .statusBarsPadding()
+    ) {
+        if (selectedSport == null) {
+            Column(
                 modifier = Modifier
-                    .statusBarsPadding()
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp)
+                    .padding(top = 24.dp, bottom = 12.dp)
+                    .navigationBarsPadding()
             ) {
-                IconButton(
-                    onClick = onBack,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
-                        .testTag("exercise_back_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back to dashboard",
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text(
-                        text = "HEALTH & EXERCISE",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFFF87171),
-                        letterSpacing = 2.sp
-                    )
-                    Text(
-                        text = "Daily Body & Mind Training",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-        }
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(sports) { sport ->
-                Card(modifier = Modifier.fillMaxWidth().padding(4.dp)) {
-                    Text(text = sport, modifier = Modifier.padding(16.dp))
-                }
-            }
-            item {
-                Button(onClick = { onAddTask() }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Add Custom Task")
-                }
-            }
-        }
-            // Calorie simulator and completions stats in one
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f))
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFF87171).copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.LocalFireDepartment,
-                                    contentDescription = "Burned fat indicator",
-                                    tint = Color(0xFFF87171),
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = "$calsBurned KCAL",
-                                    fontSize = 22.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = Color(0xFFF87171)
-                                )
-                                Text(
-                                    text = "Estimated burned calories",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                                )
-                            }
-                        }
-
-                        // Completion indicator ratios
-                        val totalTasks = tasks.size
-                        val doneTasks = tasks.count { it.isCompleted }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                text = "$doneTasks/$totalTasks Done",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                    text = "Fitness tasks",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            )
-                        }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = contentColor)
                     }
+                    Text("SPORTS & FITNESS", color = contentColor, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
                 }
-            }
 
-            // Interactive Workout Set Trainer
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (exerciseTimerActive) Color(0xFF2C2525) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f)
+                Spacer(modifier = Modifier.height(20.dp))
+
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search 100+ Sports...", color = Color.Gray) },
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedTextColor = contentColor,
+                        focusedTextColor = contentColor,
+                        focusedBorderColor = Color(0xFFA78BFA),
+                        unfocusedBorderColor = if (isDark) Color.White.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.15f),
+                        unfocusedContainerColor = if (isDark) Color.White.copy(alpha = 0.05f) else Color.White,
+                        focusedContainerColor = if (isDark) Color.White.copy(alpha = 0.1f) else Color.White
                     ),
-                    border = if (exerciseTimerActive) BorderStroke(2.dp, Color(0xFFF87171)) else null
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                    items(filteredSports) { sport ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth().clickable { selectedSport = sport },
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isDark) Color.White.copy(alpha = 0.05f) else Color.White
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(1.dp, if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.05f))
                         ) {
-                            Text(
-                                text = "⏱️ ACTIVE FITNESS INTERVAL",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color(0xFFF87171),
-                                letterSpacing = 0.5.sp
-                            )
-                            Text(
-                                text = if (exerciseTimerActive) "Active Drill" else "Standby",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        if (exerciseTimerActive) {
-                            Text(
-                                text = activeExerciseName,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White
-                            )
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            Box(
-                                modifier = Modifier
-                                    .size(100.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFF87171).copy(alpha = 0.08f))
-                                    .border(2.5.dp, Color(0xFFF87171), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "${secondsRemaining}s",
-                                    fontSize = 28.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = Color.White
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            Text(
-                                text = "Train with intensive full-force! Once the timer ticks out you earn +15 kcal.",
-                                fontSize = 12.sp,
-                                color = Color.White.copy(alpha = 0.7f),
-                                textAlign = TextAlign.Center,
-                                lineHeight = 16.sp
-                            )
-
-                            Spacer(modifier = Modifier.height(14.dp))
-
-                            Button(
-                                onClick = { exerciseTimerActive = false },
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)),
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Text("Abort Interval", color = Color.White)
-                            }
-                        } else {
-                            Text(
-                                text = "Select physical routine drill below to launch customized 30s interval countdown. Complete to gain burn points!",
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                lineHeight = 18.sp,
-                                textAlign = TextAlign.Center
-                            )
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            // 2 Column quick presets launcher
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                val drills = listOf("Jumping Jacks", "High Knees", "Push-ups", "Air Squats")
-                                drills.forEach { drill ->
-                                    Box(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(Color(0xFFF87171).copy(alpha = 0.15f))
-                                            .clickable {
-                                                activeExerciseName = drill
-                                                secondsRemaining = 30
-                                                exerciseTimerActive = true
-                                            }
-                                            .padding(vertical = 10.dp, horizontal = 4.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = "Go $drill",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Black,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
-                                }
+                                Icon(Icons.Default.FitnessCenter, contentDescription = null, tint = Color(0xFFA78BFA))
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text(sport, color = contentColor, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                Spacer(modifier = Modifier.weight(1f))
+                                Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = Color.Gray)
                             }
                         }
                     }
                 }
-            }
-
-            // Exercises checklist title row
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                
+                Spacer(modifier = Modifier.height(10.dp))
+                Button(
+                    onClick = onAddTask,
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFA78BFA))
                 ) {
-                    Text(
-                        text = "ROUTINE FITNESS CLOCKS",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFFF87171),
-                        letterSpacing = 1.sp
-                    )
-
-                    Row {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFFF87171).copy(alpha = 0.15f))
-                                .clickable(onClick = onAskAI)
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (isAILoading) {
-                                    CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 1.5.dp, color = Color(0xFFF87171))
-                                } else {
-                                    Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, tint = Color(0xFFF87171), modifier = Modifier.size(12.dp))
-                                }
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("AI Ideas", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                            }
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
-                                .clickable(onClick = onAddTask)
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(imageVector = Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(12.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Add block", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                            }
-                        }
-                    }
+                    Text("ADD CUSTOM BLOCK", fontWeight = FontWeight.Bold)
                 }
             }
-
-            // Exercise tasks list items
-            if (tasks.isEmpty()) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No custom exercises listed yet. Tap \"AI Ideas\" or create items representing your goals!",
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            } else {
-                items(tasks) { task ->
-                    RoutineTaskRow(
-                        task = task,
-                        accentColor = Color(0xFFF87171),
-                        onToggleComplete = { onToggleComplete(task) },
-                        onDelete = { onDelete(task.id) }
-                    )
-                }
-            }
+        } else {
+            SportsTrackingDashboard(sport = selectedSport!!, onBack = { selectedSport = null })
         }
     }
 }
+
+@Composable
+fun SportsTrackingDashboard(sport: String, onBack: () -> Unit) {
+    val context = LocalContext.current
+    var isRunning by remember { mutableStateOf(false) }
+    var timeInMs by remember { mutableLongStateOf(0L) }
+    var steps by remember { mutableStateOf(0) }
+    var distanceKm by remember { mutableStateOf(0.0f) }
+    var calories by remember { mutableStateOf(0) }
+    var speed by remember { mutableStateOf(0.0f) }
+
+    // Types of sports logic
+    val isMovementSport = listOf("Running", "Walking", "Cycling", "Hiking", "Jogging", "Trail Running").contains(sport)
+    val isMatchSport = listOf("Football", "Cricket", "Badminton").contains(sport)
+
+    LaunchedEffect(isRunning) {
+        if (isRunning) {
+            var lastTime = System.currentTimeMillis()
+            while (isRunning) {
+                delay(100)
+                val now = System.currentTimeMillis()
+                timeInMs += (now - lastTime)
+                lastTime = now
+            }
+        }
+    }
+
+    // GPS & Motion Sensors
+    DisposableEffect(isRunning) {
+        if (isRunning) {
+            val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+            val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+            
+            val accel = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+            val accelListener = object : SensorEventListener {
+                var lastPeak = 0L
+                override fun onSensorChanged(e: SensorEvent?) {
+                    if (e == null) return
+                    val mag = Math.sqrt((e.values[0]*e.values[0] + e.values[1]*e.values[1] + e.values[2]*e.values[2]).toDouble())
+                    if (mag > 12.5 && System.currentTimeMillis() - lastPeak > 400) {
+                        steps++
+                        calories += if (isMovementSport) 5 else 2
+                        lastPeak = System.currentTimeMillis()
+                    }
+                }
+                override fun onAccuracyChanged(s: Sensor?, a: Int) {}
+            }
+            
+            val locListener = object : LocationListener {
+                var lastLoc: Location? = null
+                override fun onLocationChanged(loc: Location) {
+                    if (loc.accuracy < 20f) {
+                        val prev = lastLoc
+                        if (prev != null) {
+                            val d = prev.distanceTo(loc)
+                            // Strict movement filter
+                            if (d > 3.0 && loc.speed > 0.5f) {
+                                distanceKm += (d / 1000f)
+                                speed = loc.speed * 3.6f // km/h
+                            }
+                        }
+                        lastLoc = loc
+                    }
+                }
+                override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+                override fun onProviderEnabled(provider: String) {}
+                override fun onProviderDisabled(provider: String) {}
+            }
+
+            sensorManager?.registerListener(accelListener, accel, SensorManager.SENSOR_DELAY_UI)
+            try {
+                locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 1f, locListener)
+            } catch (e: SecurityException) {}
+
+            onDispose {
+                sensorManager?.unregisterListener(accelListener)
+                locationManager?.removeUpdates(locListener)
+            }
+        } else {
+            onDispose {}
+        }
+    }
+
+    val isDark = MaterialTheme.colorScheme.onBackground == Color.White
+    val contentColor = if (isDark) Color.White else Color(0xFF0F172A)
+    val displayTime = String.format(Locale.getDefault(), "%02d:%02d:%02d", 
+        (timeInMs / 3600000), (timeInMs / 60000) % 60, (timeInMs / 1000) % 60)
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp)
+            .padding(top = 24.dp, bottom = 12.dp)
+            .navigationBarsPadding(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = contentColor)
+            }
+            Text(sport.uppercase(), color = contentColor, fontWeight = FontWeight.Black, fontSize = 20.sp)
+        }
+
+        Spacer(modifier = Modifier.height(30.dp))
+
+        // Futuristic Timer Circle
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(260.dp)) {
+            CircularProgressIndicator(
+                progress = { (timeInMs % 60000).toFloat() / 60000f },
+                modifier = Modifier.fillMaxSize(),
+                color = Color(0xFF60A5FA),
+                strokeWidth = 4.dp,
+                trackColor = if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.05f)
+            )
+            CircularProgressIndicator(
+                progress = { (timeInMs % 3600000).toFloat() / 3600000f },
+                modifier = Modifier.size(240.dp),
+                color = Color(0xFFA78BFA),
+                strokeWidth = 8.dp,
+                trackColor = Color.Transparent
+            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(displayTime, color = contentColor, fontSize = 42.sp, fontWeight = FontWeight.Light, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                Text("LIVE DURATION", color = Color(0xFF60A5FA), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(40.dp))
+
+        // Stats Grid
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.weight(1f)) {
+            item {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    StatCard("Calories", "$calories kcal", Icons.Default.LocalFireDepartment, Color(0xFFF87171), modifier = Modifier.weight(1f))
+                    if (isMovementSport || isMatchSport) {
+                        StatCard("Distance", String.format("%.2f km", distanceKm), Icons.Default.LocationOn, Color(0xFF60A5FA), modifier = Modifier.weight(1f))
+                    } else {
+                        StatCard("Score", "${(timeInMs / 10000)} pts", Icons.Default.AutoAwesome, Color(0xFFFBBF24), modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+            if (isMovementSport) {
+                item {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        StatCard("Steps", "$steps", Icons.Default.DirectionsWalk, Color(0xFFC084FC), modifier = Modifier.weight(1f))
+                        StatCard("Speed", String.format("%.1f km/h", speed), Icons.Default.PlayArrow, Color(0xFF34D399), modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+            onClick = { isRunning = !isRunning },
+            modifier = Modifier.fillMaxWidth().height(60.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = if (isRunning) Color(0xFFEF4444) else Color(0xFF60A5FA)),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Text(if (isRunning) "STOP SESSION" else "START TRACKING", fontWeight = FontWeight.Black, fontSize = 18.sp)
+        }
+    }
+}
+
+@Composable
+fun StatCard(label: String, value: String, icon: ImageVector, color: Color, modifier: Modifier = Modifier) {
+    val isDark = MaterialTheme.colorScheme.onBackground == Color.White
+    val contentColor = if (isDark) Color.White else Color(0xFF0F172A)
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDark) Color.White.copy(alpha = 0.05f) else Color.White
+        ),
+        border = BorderStroke(1.dp, if (isDark) color.copy(alpha = 0.2f) else color.copy(alpha = 0.4f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Icon(imageVector = icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(text = value, color = contentColor, fontSize = 18.sp, fontWeight = FontWeight.Black)
+            Text(text = label, color = Color.Gray, fontSize = 12.sp)
+        }
+    }
+}
+

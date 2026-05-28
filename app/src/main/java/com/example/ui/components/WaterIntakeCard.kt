@@ -13,6 +13,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -224,9 +226,9 @@ fun WaterTargetChip(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val backgroundColor = if (isSelected) Color(0xFF2563EB).copy(alpha = 0.2f) else Color.Transparent
-    val borderColor = if (isSelected) Color(0xFF0EA5E9) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)
-    val textColor = if (isSelected) Color(0xFF38BDF8) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+    val backgroundColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+    val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.24f)
+    val textColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
 
     Box(
         modifier = Modifier
@@ -234,12 +236,12 @@ fun WaterTargetChip(
             .background(backgroundColor)
             .border(1.dp, borderColor, RoundedCornerShape(12.dp))
             .clickable { onClick() }
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = label,
-            fontSize = 12.sp,
+            fontSize = 13.sp,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
             color = textColor
         )
@@ -485,7 +487,8 @@ fun WaterIntakeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
@@ -646,6 +649,8 @@ fun WaterIntakeScreen(
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(48.dp))
         }
     }
 }

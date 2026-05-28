@@ -50,6 +50,8 @@ import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.LocalDrink
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WbSunny
@@ -90,6 +92,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.model.RoutineItem
 import com.example.ui.components.AddCustomTaskDialog
+import com.example.ui.components.MusicSettingsDialog
+import com.example.ui.components.FloatingMusicPlayerWidget
 import com.example.ui.components.GlassCard
 import com.example.ui.components.QuoteSection
 import com.example.ui.components.RoutineCategoryCard
@@ -104,6 +108,7 @@ import com.example.ui.components.StudyScreen
 import com.example.ui.components.SleepScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.viewmodel.RoutineViewModel
+import java.util.Calendar
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -115,6 +120,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        viewModel.checkAndResetToToday()
         setContent {
             val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
             MyApplicationTheme(darkTheme = isDarkTheme) {
@@ -137,6 +143,7 @@ fun RoutineDashboardScreen(
 
     var showAddTaskDialog by remember { mutableStateOf(false) }
     var showInsightsDialog by remember { mutableStateOf(false) }
+    var showMusicDialog by remember { mutableStateOf(false) }
     var selectedCategoryForAI by remember { mutableStateOf<String?>(null) }
     var activeCategoryDialog by remember { mutableStateOf<String?>(null) }
     var activeScreen by remember { mutableStateOf("dashboard") }
@@ -145,8 +152,27 @@ fun RoutineDashboardScreen(
         activeScreen = "dashboard"
     }
 
-    // Format display date
-    val displayDate = SimpleDateFormat("EEEE, d MMMM YYYY", Locale.getDefault()).format(Date())
+    val currentSelectedDate by viewModel.currentDate.collectAsStateWithLifecycle()
+    val todayStr = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()) }
+    val yesterdayStr = remember {
+        val cal = Calendar.getInstance()
+        cal.add(Calendar.DAY_OF_YEAR, -1)
+        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(cal.time)
+    }
+
+    // Format display date dynamically based on selection
+    val displayDate = remember(currentSelectedDate) {
+        try {
+            val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(currentSelectedDate)
+            if (date != null) {
+                SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault()).format(date)
+            } else {
+                SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault()).format(Date())
+            }
+        } catch (e: Exception) {
+            SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault()).format(Date())
+        }
+    }
 
     // Progress calculations (excluding water from count to prevent bias)
     val taskRoutines = routines.filter { it.category != "water" }
@@ -156,28 +182,28 @@ fun RoutineDashboardScreen(
 
     // Animated background gradient colors for incredibly smooth theme transition
     val gradStart by animateColorAsState(
-        targetValue = if (isDark) Color(0xFF040209) else Color(0xFFF3F4F6),
+        targetValue = if (isDark) Color(0xFF040209) else Color(0xFFF0F9FF), // Sky 50 (Very light blue)
         animationSpec = tween(durationMillis = 600),
         label = "gradStart"
     )
     val gradMid by animateColorAsState(
-        targetValue = if (isDark) Color(0xFF0D0922) else Color(0xFFE5E7EB),
+        targetValue = if (isDark) Color(0xFF0D0922) else Color(0xFFFFFFFF), // White
         animationSpec = tween(durationMillis = 600),
         label = "gradMid"
     )
     val gradEnd by animateColorAsState(
-        targetValue = if (isDark) Color(0xFF111438) else Color(0xFFF3F4F6),
+        targetValue = if (isDark) Color(0xFF111438) else Color(0xFFE0F2FE), // Sky 100 (Beautiful soft blue)
         animationSpec = tween(durationMillis = 600),
         label = "gradEnd"
     )
 
     val blobPurple by animateColorAsState(
-        targetValue = if (isDark) Color(0x188B5CF6) else Color(0x0C8B5CF6),
+        targetValue = if (isDark) Color(0x188B5CF6) else Color(0x1538BDF8), // Light blue tint
         animationSpec = tween(durationMillis = 600),
         label = "blobPurple"
     )
     val blobCyan by animateColorAsState(
-        targetValue = if (isDark) Color(0x1100E5FF) else Color(0x0800E5FF),
+        targetValue = if (isDark) Color(0x1100E5FF) else Color(0x100284C7), // Light blue tint
         animationSpec = tween(durationMillis = 600),
         label = "blobCyan"
     )
@@ -207,6 +233,16 @@ fun RoutineDashboardScreen(
                         selected = false,
                         icon = { Icon(if (isDark) Icons.Default.LightMode else Icons.Default.DarkMode, contentDescription = null) },
                         onClick = { viewModel.toggleTheme() }
+                    )
+                    
+                    NavigationDrawerItem(
+                        label = { Text("Music Hub") },
+                        selected = false,
+                        icon = { Icon(Icons.Default.MusicNote, contentDescription = null) },
+                        onClick = {
+                            scope.launch { drawerState.close() }
+                            showMusicDialog = true
+                        }
                     )
                 }
             }
@@ -360,6 +396,91 @@ fun RoutineDashboardScreen(
                                         fontSize = 14.sp,
                                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                                     )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                                        shape = RoundedCornerShape(16.dp)
+                                    )
+                                    .border(
+                                        width = 1.dp,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                                        shape = RoundedCornerShape(16.dp)
+                                    )
+                                    .padding(4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                val isTodaySelected = currentSelectedDate == todayStr
+                                val isYesterdaySelected = currentSelectedDate == yesterdayStr
+                                
+                                // Yesterday Button
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .background(
+                                            color = if (isYesterdaySelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                            shape = RoundedCornerShape(12.dp)
+                                        )
+                                        .clickable { viewModel.setDate(yesterdayStr) }
+                                        .padding(vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = "Yesterday",
+                                            color = if (isYesterdaySelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        if (isYesterdaySelected) {
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onPrimary,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Today Button
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .background(
+                                            color = if (isTodaySelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                            shape = RoundedCornerShape(12.dp)
+                                        )
+                                        .clickable { viewModel.setDate(todayStr) }
+                                        .padding(vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = "Today",
+                                            color = if (isTodaySelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        if (isTodaySelected) {
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onPrimary,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -574,10 +695,26 @@ fun RoutineDashboardScreen(
             }
                 }
             }
+            if (activeScreen == "dashboard") {
+                FloatingMusicPlayerWidget(
+                    viewModel = viewModel,
+                    onOpenHub = { showMusicDialog = true },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 24.dp)
+                )
+            }
         }
     }
     
     // Dialogs
+    if (showMusicDialog) {
+        MusicSettingsDialog(
+            viewModel = viewModel,
+            onDismiss = { showMusicDialog = false }
+        )
+    }
+
     if (showAddTaskDialog) {
         AddCustomTaskDialog(
             onDismiss = { showAddTaskDialog = false },
@@ -590,7 +727,8 @@ fun RoutineDashboardScreen(
     if (showInsightsDialog) {
         com.example.ui.components.InsightsDialog(
             onDismiss = { showInsightsDialog = false },
-            getRoutinesForDateFlow = remember { { date -> viewModel.getRoutinesForDateFlow(date) } }
+            getRoutinesForDateFlow = remember { { date -> viewModel.getRoutinesForDateFlow(date) } },
+            allRoutinesFlow = viewModel.allRoutines
         )
     }
 

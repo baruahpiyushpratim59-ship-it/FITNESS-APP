@@ -1,5 +1,5 @@
 {
-  "name": "Daily Routine AI",
+  "name": "Stay Raxo",
   "description": "A elegant and modern Daily Routine AI Assistant to manage your day, track habits, dynamic 5-minute workouts, healthy breakfast suggestions, and motivational support.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
